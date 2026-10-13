@@ -10,6 +10,9 @@ body .prep-dashboard-clean {
   line-height: 1.6;
   padding: 8px 0 16px;
 }
+body:has(.prep-dashboard-clean) > main.prep-main {
+  max-width: 1440px;
+}
 .prep-dashboard-clean :is(h1, h2, h3, p, dl, dd, ul) {
   margin: 0;
 }
@@ -59,6 +62,7 @@ body .prep-dashboard-clean h3 {
   gap: 10px;
   flex-shrink: 0;
   flex-wrap: wrap;
+  align-items: center;
 }
 body .prep-dashboard-clean .dashboard-button {
   display: inline-flex;

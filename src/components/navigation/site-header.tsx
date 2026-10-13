@@ -15,6 +15,10 @@ import {
   UserRound,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/actions";
+import {
+  LANDING_MOTION,
+  LANDING_NAV_STYLE,
+} from "@/components/landing/landing-motion";
 
 const links = [
   { href: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
@@ -22,6 +26,66 @@ const links = [
   { href: "/patterns", title: "Practice", icon: Code2 },
   { href: "/notes", title: "Notes", icon: StickyNote },
 ];
+
+function LogoutConfirmation({ mobile = false }: { mobile?: boolean }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !detailsRef.current?.contains(event.target)
+      ) {
+        if (detailsRef.current) detailsRef.current.open = false;
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !detailsRef.current?.open) return;
+      detailsRef.current.open = false;
+      detailsRef.current.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  const close = () => {
+    if (!detailsRef.current) return;
+    detailsRef.current.open = false;
+    detailsRef.current.querySelector("summary")?.focus();
+  };
+
+  return (
+    <details
+      ref={detailsRef}
+      className={mobile ? "prep-mobile-signout" : "prep-top-signout"}
+    >
+      <summary aria-label={mobile ? undefined : "Log out"} title="Log out">
+        {mobile ? (
+          <>
+            Log out <LogOut size={16} />
+          </>
+        ) : (
+          <LogOut size={18} />
+        )}
+      </summary>
+      <div className="prep-signout-confirm">
+        <p>Are you sure you want to log out?</p>
+        <div className="prep-signout-actions">
+          <button type="button" onClick={close}>
+            Cancel
+          </button>
+          <form action={signOut}>
+            <button type="submit">Confirm log out</button>
+          </form>
+        </div>
+      </div>
+    </details>
+  );
+}
 
 export function SiteHeader({
   user,
@@ -32,6 +96,7 @@ export function SiteHeader({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -45,6 +110,16 @@ export function SiteHeader({
   ].includes(pathname);
   const name = user?.name || user?.email?.split("@")[0] || "Your account";
   const quickSearchEnabled = !authPage && pathname !== "/";
+  const guestLanding = pathname === "/" && !pending && !user;
+  useEffect(() => {
+    if (!guestLanding) return;
+    const updateScrollState = () => {
+      setIsScrolled(window.scrollY > LANDING_MOTION.navbar.scrollThresholdPx);
+    };
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrollState);
+  }, [guestLanding]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (
@@ -140,7 +215,16 @@ export function SiteHeader({
       </div>
     );
     return (
-      <header className="prep-landing-navigation">
+      <header
+        className={[
+          "prep-landing-navigation",
+          guestLanding && "is-guest-landing-nav",
+          guestLanding && isScrolled && "is-scrolled",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={guestLanding ? LANDING_NAV_STYLE : undefined}
+      >
         <div className="yard-header-inner">
           {brand}
           <div className="yard-header-desktop">
@@ -225,24 +309,22 @@ export function SiteHeader({
           <span />
           Free workspace
         </span>
-        <Link
-          href="/dashboard"
-          className="prep-top-profile"
-          aria-label={"Dashboard for " + name}
-        >
-          <span className="prep-avatar">
-            <UserRound size={17} />
-          </span>
-          <span>
-            <strong>{name}</strong>
-            <small>Student account</small>
-          </span>
-        </Link>
-        <form className="prep-top-signout" action={signOut}>
-          <button aria-label="Log out" title="Log out">
-            <LogOut size={18} />
-          </button>
-        </form>
+        <div className="prep-account-actions">
+          <Link
+            href="/dashboard"
+            className="prep-top-profile"
+            aria-label={"Dashboard for " + name}
+          >
+            <span className="prep-avatar">
+              <UserRound size={17} />
+            </span>
+            <span>
+              <strong>{name}</strong>
+              <small>Student account</small>
+            </span>
+          </Link>
+          <LogoutConfirmation />
+        </div>
         <button
           ref={menuRef}
           className="prep-mobile-menu"
@@ -279,11 +361,7 @@ export function SiteHeader({
           {navigation}
           <div className="prep-mobile-account">
             <span>{name}</span>
-            <form action={signOut}>
-              <button>
-                Log out <LogOut size={16} />
-              </button>
-            </form>
+            <LogoutConfirmation mobile />
           </div>
         </div>
       )}
